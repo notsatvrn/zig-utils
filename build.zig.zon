@@ -1,0 +1,19 @@
+.{
+    .name = .utils,
+    .version = "0.0.0",
+    .fingerprint = 0x540f5beb1e1a7c99,
+    .minimum_zig_version = "0.14.1",
+
+    .dependencies = .{
+        .comptime_hash_map = .{
+            .url = "git+https://github.com/notsatvrn/comptime_hash_map#0fd4e79f22f20d2820ceeb7c4eea8fef68d0b0ba",
+            .hash = "comptime_hash_map-0.0.0-8kpon24XAAA3O-GPviXHu3y54h2lQeH3MmV9yb_7scGV",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
