@@ -8,8 +8,6 @@ const std = @import("std");
 const Order = std.math.Order;
 const Allocator = std.mem.Allocator;
 
-const common = @import("common.zig");
-
 // NODE
 
 pub const Color = enum(u1) { red, black };
@@ -53,10 +51,14 @@ pub fn RedBlackTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
         const Self = @This();
         pub const Node = RedBlackNode(T);
         const Pool = std.heap.MemoryPoolExtra(Node, .{ .alignment = @alignOf(Node) });
-        const order = common.orderFn(T, cmp);
 
         pool: Pool,
         root: ?*Node = null,
+
+        pub fn order(x: T, y: T) Order {
+            if (cmp) |f| return f(x, y);
+            return std.math.order(x, y);
+        }
 
         pub inline fn init(allocator: Allocator) Self {
             return .{ .pool = Pool.init(allocator) };
@@ -65,32 +67,6 @@ pub fn RedBlackTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
         pub fn deinit(self: *Self) void {
             self.pool.deinit();
             self.* = undefined;
-        }
-
-        // ITERATION
-
-        pub const Iterator = common.Iterator(Self);
-        pub inline fn iterator(self: *Self, allocator: Allocator) Iterator {
-            return .init(self, allocator);
-        }
-
-        // SEARCHING
-
-        pub fn findNode(self: Self, value: T) ?*Node {
-            var current = self.root;
-            if (current == null) return null;
-            var ord = order(value, current.?.value);
-
-            while (true) {
-                current = switch (ord) {
-                    .lt => current.?.left,
-                    .gt => current.?.right,
-                    .eq => return current,
-                };
-
-                if (current == null) return null;
-                ord = order(value, current.?.value);
-            }
         }
 
         // ROTATION
