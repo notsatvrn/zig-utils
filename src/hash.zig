@@ -4,14 +4,19 @@ const readIntPartial = @import("root.zig").readIntPartial;
 
 // ALGORITHMS
 
+const seed: u64 = 0x3243F6A8885A308D; // digits of pi
+
 /// Hash function which only "hashes" the first 8 bytes.
 /// Never use this unless you know your inputs will be <= 8 bytes.
-pub fn noophash(input: []const u8) u64 {
-    if (input.len > 8) return seed;
-    return readIntPartial(u64, input, .little);
-}
+pub fn nanohash(input: []const u8) u64 {
+    if (input.len > 8) {
+        @branchHint(.unlikely);
+        return seed;
+    }
 
-const seed: u64 = 0x3243F6A8885A308D; // digits of pi
+    const int = readIntPartial(u64, input, .little);
+    return mix(int, seed) ^ input.len;
+}
 
 // folded multiply with a faster 32-bit path
 // borrowed from foldhash and modified a bit
@@ -51,7 +56,7 @@ inline fn mix(x: u64, y: u64) u64 {
 pub fn microhash(input: []const u8) u64 {
     var ptr = input.ptr;
     var len = input.len;
-    var out = seed;
+    var out = seed ^ len;
 
     while (len > 16) : (len -= 16) {
         const x = readInt(u64, @ptrCast(ptr), .little);
@@ -93,7 +98,7 @@ pub const Hasher = union(enum) {
                     return rapidhash;
 
                 break :blk switch (max_len.?) {
-                    0...8 => noophash,
+                    0...8 => nanohash,
                     9...64 => microhash,
                     else => rapidhash,
                 };

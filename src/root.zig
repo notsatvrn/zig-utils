@@ -4,7 +4,6 @@ pub const spinlock = @import("spinlock.zig");
 pub const trees = @import("trees.zig");
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 const Endian = std.builtin.Endian;
 
 /// Creates a static map of strings to enum values at compile time.
