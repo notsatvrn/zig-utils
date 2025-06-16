@@ -120,18 +120,18 @@ pub fn StringContext(comptime hasher: Hasher, comptime T: type, comptime max_len
     };
 }
 
-pub fn StringHashMap(comptime V: type, comptime hasher: Hasher) type {
-    return std.HashMap([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
+pub fn StringHashMap(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
+    return std.HashMap([]const u8, V, StringContext(hasher, u64, max_len_hint), std.hash_map.default_max_load_percentage);
 }
-pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
-    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
+pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
+    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64, max_len_hint), std.hash_map.default_max_load_percentage);
 }
 
-pub fn StringArrayHashMap(comptime V: type, comptime hasher: Hasher) type {
-    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32, null), true);
+pub fn StringArrayHashMap(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
+    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32, max_len_hint), true);
 }
-pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
-    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32, null), true);
+pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
+    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32, max_len_hint), true);
 }
 
 pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime values: anytype) type {
@@ -143,5 +143,15 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime
         max_len = @max(key.len, max_len);
     }
 
-    return chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64, max_len), values);
+    return struct {
+        const map = chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64, max_len), values);
+
+        pub inline fn has(key: []const u8) bool {
+            return map.has(key);
+        }
+
+        pub inline fn get(key: []const u8) ?V {
+            return if (map.get(key)) |v| v.* else null;
+        }
+    };
 }

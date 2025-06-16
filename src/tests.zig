@@ -12,7 +12,7 @@ const readIntPartial = utils.readIntPartial;
 test EnumStringMap {
     const Enum = enum { foo, bar, baz, qux };
     const map = EnumStringMap(Enum, .fastest);
-    try std.testing.expectEqual(map.get("foo").?.*, Enum.foo);
+    try std.testing.expectEqual(map.get("foo").?, Enum.foo);
 }
 
 test readIntPartial {
