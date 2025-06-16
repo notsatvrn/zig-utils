@@ -95,7 +95,7 @@ pub const Hasher = union(enum) {
             .safest => rapidhash,
             .fastest => blk: {
                 if (max_len == null)
-                    return rapidhash;
+                    return microhash;
 
                 break :blk switch (max_len.?) {
                     0...8 => nanohash,
@@ -107,6 +107,9 @@ pub const Hasher = union(enum) {
         };
     }
 };
+pub const nanohasher = Hasher{ .custom = nanohash };
+pub const microhasher = Hasher{ .custom = microhash };
+pub const rapidhasher = Hasher{ .custom = rapidhash };
 
 pub fn StringContext(comptime hasher: Hasher, comptime T: type, comptime max_len: ?u64) type {
     return struct {
@@ -120,18 +123,18 @@ pub fn StringContext(comptime hasher: Hasher, comptime T: type, comptime max_len
     };
 }
 
-pub fn StringHashMap(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
-    return std.HashMap([]const u8, V, StringContext(hasher, u64, max_len_hint), std.hash_map.default_max_load_percentage);
+pub fn StringHashMap(comptime V: type, comptime hasher: Hasher) type {
+    return std.HashMap([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
 }
-pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
-    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64, max_len_hint), std.hash_map.default_max_load_percentage);
+pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
+    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
 }
 
-pub fn StringArrayHashMap(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
-    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32, max_len_hint), true);
+pub fn StringArrayHashMap(comptime V: type, comptime hasher: Hasher) type {
+    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32, null), true);
 }
-pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher, comptime max_len_hint: ?u64) type {
-    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32, max_len_hint), true);
+pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
+    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32, null), true);
 }
 
 pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime values: anytype) type {

@@ -13,6 +13,9 @@ test EnumStringMap {
     const Enum = enum { foo, bar, baz, qux };
     const map = EnumStringMap(Enum, .fastest);
     try std.testing.expectEqual(map.get("foo").?, Enum.foo);
+    try std.testing.expectEqual(map.get("bar").?, Enum.bar);
+    try std.testing.expectEqual(map.get("baz").?, Enum.baz);
+    try std.testing.expectEqual(map.get("qux").?, Enum.qux);
 }
 
 test readIntPartial {
