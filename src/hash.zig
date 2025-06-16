@@ -140,9 +140,11 @@ pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) ty
 pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime values: anytype) type {
     const chm = @import("comptime_hash_map");
 
+    comptime var min_len = std.math.maxInt(usize);
     comptime var max_len = 0;
     for (values) |kv| {
         const key: []const u8 = kv.@"0";
+        min_len = @min(key.len, min_len);
         max_len = @max(key.len, max_len);
     }
 
@@ -154,6 +156,7 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime
         }
 
         pub fn get(key: []const u8) ?V {
+            if (key.len < min_len or key.len > max_len) return null;
             // hopefully this will optimize away the reference
             const value = @call(.always_inline, map.get, .{key});
             return if (value) |v| v.* else null;
