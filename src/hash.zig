@@ -149,12 +149,14 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime
     return struct {
         const map = chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64, max_len), values);
 
-        pub inline fn has(key: []const u8) bool {
-            return map.has(key);
+        pub fn has(key: []const u8) bool {
+            return get(key) != null;
         }
 
-        pub inline fn get(key: []const u8) ?V {
-            return if (map.get(key)) |v| v.* else null;
+        pub fn get(key: []const u8) ?V {
+            // hopefully this will optimize away the reference
+            const value = @call(.always_inline, map.get, .{key});
+            return if (value) |v| v.* else null;
         }
     };
 }
