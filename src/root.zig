@@ -1,6 +1,6 @@
 pub const hash = @import("hash.zig");
+pub const lock = @import("lock.zig");
 pub const simd = @import("simd.zig");
-pub const spinlock = @import("spinlock.zig");
 pub const trees = @import("trees.zig");
 
 const std = @import("std");

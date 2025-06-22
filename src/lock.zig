@@ -1,21 +1,21 @@
 const std = @import("std");
 
-// SPIN-LOCKING MECHANISMS
+// SPINNING LOCKS
 
 pub const SpinLock = packed struct {
-    inner: u8 = 0,
+    inner: usize = 0,
 
     pub fn lock(self: *SpinLock) void {
-        while (@cmpxchgWeak(u8, &self.inner, 0, 1, .acquire, .monotonic) != null)
+        while (@cmpxchgWeak(usize, &self.inner, 0, 1, .acquire, .monotonic) != null)
             std.atomic.spinLoopHint();
     }
 
     pub fn tryLock(self: *SpinLock) bool {
-        return @cmpxchgWeak(u8, &self.inner, 0, 1, .acquire, .monotonic) == null;
+        return @cmpxchgWeak(usize, &self.inner, 0, 1, .acquire, .monotonic) == null;
     }
 
     pub fn unlock(self: *SpinLock) void {
-        @atomicStore(u8, &self.inner, 0, .release);
+        @atomicStore(usize, &self.inner, 0, .release);
     }
 };
 
@@ -65,3 +65,35 @@ pub const SpinSharedLock = packed struct {
         _ = @atomicRmw(u32, &self.inner, .Sub, 1, .release);
     }
 };
+
+// NO-OP LOCKS
+
+pub const NoopLock = struct {
+    pub fn lock(_: *NoopLock) void {}
+    pub fn tryLock(_: *NoopLock) bool {}
+    pub fn unlock(_: *NoopLock) void {}
+};
+
+pub const NoopSharedLock = struct {
+    pub fn lock(_: *NoopSharedLock) void {}
+    pub fn relock(_: *NoopSharedLock) void {}
+    pub fn lockShared(_: *NoopSharedLock) void {}
+    pub fn tryLock(_: *NoopSharedLock) bool {}
+    pub fn tryLockShared(_: *NoopSharedLock) bool {}
+    pub fn unlock(_: *NoopSharedLock) void {}
+    pub fn unlockShared(_: *NoopSharedLock) void {}
+};
+
+// GENERIC LOCKS
+
+pub fn Lock(comptime thread_safe: bool) type {
+    if (!thread_safe) return NoopLock;
+    if (@import("options").spinlock) return SpinLock;
+    return std.Thread.Mutex;
+}
+
+pub fn SharedLock(comptime thread_safe: bool) type {
+    if (!thread_safe) return NoopSharedLock;
+    if (@import("options").spinlock) return SpinSharedLock;
+    return std.Thread.RwLock;
+}

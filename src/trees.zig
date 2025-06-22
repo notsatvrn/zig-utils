@@ -2,11 +2,6 @@ const std = @import("std");
 const Order = std.math.Order;
 const Allocator = std.mem.Allocator;
 
-const Lock = if (@import("options").spinlock)
-    @import("spinlock.zig").SpinSharedLock
-else
-    std.Thread.RwLock;
-
 const RedBlack = @import("trees/rb.zig").RedBlackTree;
 const Avl = @import("trees/avl.zig").AvlTree;
 
@@ -18,12 +13,14 @@ pub fn Tree(
     comptime T: type,
     comptime cmp: fn (T, T) Order,
     comptime kind: Kind,
+    comptime thread_safe: bool,
 ) type {
     return struct {
         const Impl = switch (kind) {
             .red_black => RedBlack(T, cmp),
             .avl => Avl(T, cmp),
         };
+        const Lock = @import("lock.zig").SharedLock(thread_safe);
 
         pub const Node = Impl.Node;
 
@@ -44,10 +41,9 @@ pub fn Tree(
             self.* = undefined;
         }
 
-        pub inline fn findNode(self: *const Self, value: T) ?*Node {
-            const lock = &@constCast(self).lock;
-            lock.lockShared();
-            defer lock.unlockShared();
+        pub inline fn findNode(self: *Self, value: T) ?*Node {
+            self.lock.lockShared();
+            defer self.lock.unlockShared();
 
             var current = self.impl.root;
             if (current == null) return null;
@@ -79,11 +75,11 @@ pub fn Tree(
 
         // EXTRA METHODS
 
-        pub inline fn contains(self: Self, value: T) bool {
+        pub inline fn contains(self: *Self, value: T) bool {
             return self.findNode(value) != null;
         }
 
-        pub inline fn min(self: Self) ?*Node {
+        pub inline fn min(self: *Self) ?*Node {
             self.lock.lockShared();
             defer self.lock.unlockShared();
             if (self.impl.root) |root| {
@@ -91,7 +87,7 @@ pub fn Tree(
             } else return null;
         }
 
-        pub inline fn max(self: Self) ?*Node {
+        pub inline fn max(self: *Self) ?*Node {
             self.lock.lockShared();
             defer self.lock.unlockShared();
             if (self.impl.root) |root| {
@@ -170,6 +166,7 @@ pub fn Map(
     comptime V: type,
     comptime cmp: ?fn (K, K) Order,
     comptime kind: Kind,
+    comptime thread_safe: bool,
 ) type {
     return struct {
         const KV = struct { key: K, value: V };
@@ -178,7 +175,7 @@ pub fn Map(
             return std.math.order(kv1.key, kv2.key);
         }
 
-        const TreeT = Tree(KV, cmpKV, kind);
+        const TreeT = Tree(KV, cmpKV, kind, thread_safe);
         tree: TreeT,
 
         const Self = @This();
@@ -194,17 +191,17 @@ pub fn Map(
 
         // READING
 
-        pub inline fn get(self: Self, key: K) ?V {
+        pub inline fn get(self: *Self, key: K) ?V {
             return (self.getEntry(key) orelse return null).value;
         }
 
-        pub fn getEntry(self: Self, key: K) ?*KV {
+        pub fn getEntry(self: *Self, key: K) ?*KV {
             const needle = KV{ .key = key, .value = undefined };
             const node = self.tree.findNode(needle) orelse return null;
             return &node.value;
         }
 
-        pub inline fn contains(self: Self, key: K) bool {
+        pub inline fn contains(self: *Self, key: K) bool {
             return self.getEntry(key) != null;
         }
 

@@ -32,7 +32,7 @@ test readIntPartial {
 
 test "trees" {
     inline for ([2]utils.trees.Kind{ .red_black, .avl }) |kind| {
-        const Map = utils.trees.Map(usize, []const u8, null, kind);
+        const Map = utils.trees.Map(usize, []const u8, null, kind, false);
         var map = Map.init(std.testing.allocator);
         defer map.deinit();
 
