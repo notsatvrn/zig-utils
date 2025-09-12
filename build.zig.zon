@@ -6,8 +6,8 @@
 
     .dependencies = .{
         .comptime_hash_map = .{
-            .url = "git+https://github.com/notsatvrn/comptime_hash_map#0fd4e79f22f20d2820ceeb7c4eea8fef68d0b0ba",
-            .hash = "comptime_hash_map-0.0.0-8kpon24XAAA3O-GPviXHu3y54h2lQeH3MmV9yb_7scGV",
+            .url = "git+https://github.com/notsatvrn/comptime_hash_map#2280a0a08bb96d718bb20cde9510f947c48f0775",
+            .hash = "comptime_hash_map-0.0.0-8kpon0MWAADkEU7SAJR__DdxvzcPM3WHlCgWWobeGKjx",
         },
     },
 

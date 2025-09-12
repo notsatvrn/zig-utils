@@ -50,7 +50,7 @@ pub fn RedBlackTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
     return struct {
         const Self = @This();
         pub const Node = RedBlackNode(T);
-        const Pool = std.heap.MemoryPoolExtra(Node, .{ .alignment = @alignOf(Node) });
+        const Pool = std.heap.MemoryPoolExtra(Node, .{ .alignment = .of(Node) });
 
         pool: Pool,
         root: ?*Node = null,

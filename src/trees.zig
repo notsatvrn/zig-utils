@@ -98,14 +98,14 @@ pub fn Tree(
         // ITERATOR
 
         pub inline fn iterator(self: *Self, allocator: Allocator) Iterator {
-            return .{ .tree = self, .stack = std.ArrayList(*Node).init(allocator) };
+            return .{ .tree = self, .stack = std.array_list.Managed(*Node).init(allocator) };
         }
 
         pub const Iterator = struct {
             tree: *Self,
             lock_held: bool = false,
 
-            stack: std.ArrayList(*Node),
+            stack: std.array_list.Managed(*Node),
             exhausted: bool = false,
 
             pub fn next(self: *Iterator) !?T {

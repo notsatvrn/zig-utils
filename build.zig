@@ -18,24 +18,22 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "spinlock", spinlock);
     const options_module = options.createModule();
 
-    const utils = b.addModule("utils", .{
+    const module = b.addModule("utils", .{
         .root_source_file = b.path("src/root.zig"),
         .imports = &.{
             .{ .name = "options", .module = options_module },
             .{ .name = "comptime_hash_map", .module = chm_module },
         },
-    });
-
-    // TESTS
-
-    const tests = b.addTest(.{
-        .root_source_file = b.path("src/tests.zig"),
         .target = target,
         .optimize = optimize,
     });
 
+    // TESTS
+
+    const tests = b.addTest(.{ .root_module = module });
+
     tests.linkLibC();
-    tests.root_module.addImport("utils", utils);
+    tests.root_module.addImport("utils", module);
 
     const run_tests = b.addRunArtifact(tests);
 
