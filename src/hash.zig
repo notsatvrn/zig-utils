@@ -85,37 +85,10 @@ pub fn rapidhash(input: []const u8) u64 {
 
 // FAST STRING HASHMAPS
 
-pub const Hasher = union(enum) {
-    safest,
-    fastest,
-    custom: fn ([]const u8) u64,
-
-    pub fn get(self: Hasher, max_len: ?u64) fn ([]const u8) u64 {
-        return switch (self) {
-            .safest => rapidhash,
-            .fastest => blk: {
-                if (max_len == null)
-                    return microhash;
-
-                break :blk switch (max_len.?) {
-                    0...8 => nanohash,
-                    9...64 => microhash,
-                    else => rapidhash,
-                };
-            },
-            .custom => |f| f,
-        };
-    }
-};
-pub const nanohasher = Hasher{ .custom = nanohash };
-pub const microhasher = Hasher{ .custom = microhash };
-pub const rapidhasher = Hasher{ .custom = rapidhash };
-
-pub fn StringContext(comptime hasher: Hasher, comptime T: type, comptime max_len: ?u64) type {
+pub fn StringContext(comptime hasher: fn ([]const u8) u64, comptime T: type) type {
     return struct {
         pub fn hash(_: @This(), s: []const u8) T {
-            const hash_fn = comptime hasher.get(max_len);
-            return @truncate(hash_fn(s));
+            return @truncate(hasher(s));
         }
         pub fn eql(_: @This(), a: []const u8, b: []const u8) bool {
             return std.mem.eql(u8, a, b);
@@ -123,21 +96,21 @@ pub fn StringContext(comptime hasher: Hasher, comptime T: type, comptime max_len
     };
 }
 
-pub fn StringHashMap(comptime V: type, comptime hasher: Hasher) type {
-    return std.HashMap([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
+pub fn StringHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
+    return std.HashMap([]const u8, V, StringContext(hasher, u64), std.hash_map.default_max_load_percentage);
 }
-pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
-    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64, null), std.hash_map.default_max_load_percentage);
-}
-
-pub fn StringArrayHashMap(comptime V: type, comptime hasher: Hasher) type {
-    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32, null), true);
-}
-pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: Hasher) type {
-    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32, null), true);
+pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
+    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64), std.hash_map.default_max_load_percentage);
 }
 
-pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime values: anytype) type {
+pub fn StringArrayHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
+    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32), true);
+}
+pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
+    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32), true);
+}
+
+pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64, comptime values: anytype) type {
     const chm = @import("comptime_hash_map");
 
     comptime var min_len = std.math.maxInt(usize);
@@ -149,7 +122,7 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime
     }
 
     return struct {
-        const map = chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64, max_len), values);
+        const map = chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64), values);
 
         pub fn has(key: []const u8) bool {
             return get(key) != null;
@@ -162,4 +135,19 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: Hasher, comptime
             return if (value) |v| v.* else null;
         }
     };
+}
+
+// FAST STRING -> ENUM HASHMAPS
+
+/// Creates a static map of strings to enum values at compile time.
+pub fn EnumStringMap(comptime T: type, comptime hasher: fn ([]const u8) u64) type {
+    const type_info = @typeInfo(T);
+    if (type_info != .@"enum") @compileError("enumStringMap with non-enum type");
+
+    const fields = @typeInfo(T).@"enum".fields;
+    comptime var out: [fields.len]struct { []const u8, T } = undefined;
+    inline for (fields, 0..) |field, i|
+        out[i] = .{ field.name, @field(T, field.name) };
+
+    return ComptimeStringHashMap(T, hasher, out);
 }

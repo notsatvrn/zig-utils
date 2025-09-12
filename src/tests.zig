@@ -5,13 +5,13 @@ const utils = @import("utils");
 
 // ROOT UTILITIES
 
-const EnumStringMap = utils.EnumStringMap;
+const EnumStringMap = utils.hash.EnumStringMap;
 const readIntPartial = utils.readIntPartial;
 
 // this also covers hash stuff :D
 test EnumStringMap {
     const Enum = enum { foo, bar, baz, qux };
-    const map = EnumStringMap(Enum, .fastest);
+    const map = EnumStringMap(Enum, utils.hash.nanohash);
     try std.testing.expectEqual(map.get("foo").?, Enum.foo);
     try std.testing.expectEqual(map.get("bar").?, Enum.bar);
     try std.testing.expectEqual(map.get("baz").?, Enum.baz);
