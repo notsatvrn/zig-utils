@@ -31,10 +31,7 @@ pub fn build(b: *std.Build) void {
     // TESTS
 
     const tests = b.addTest(.{ .root_module = module });
-
-    tests.linkLibC();
     tests.root_module.addImport("utils", module);
-
     const run_tests = b.addRunArtifact(tests);
 
     const test_step = b.step("test", "Run unit tests");
