@@ -61,7 +61,7 @@ pub fn Tree(
             }
         }
 
-        pub inline fn insert(self: *Self, value: T) !void {
+        pub inline fn insert(self: *Self, value: T) Allocator.Error!void {
             self.lock.lock();
             defer self.lock.unlock();
             try self.impl.insert(value);
@@ -108,7 +108,7 @@ pub fn Tree(
             stack: std.array_list.Managed(*Node),
             exhausted: bool = false,
 
-            pub fn next(self: *Iterator) !?T {
+            pub fn next(self: *Iterator) Allocator.Error!?T {
                 if (self.exhausted) return null;
 
                 var node: *Node = undefined;
@@ -207,7 +207,7 @@ pub fn Map(
 
         // WRITING
 
-        pub inline fn put(self: *Self, key: K, value: V) !void {
+        pub inline fn put(self: *Self, key: K, value: V) Allocator.Error!void {
             try self.tree.insert(.{ .key = key, .value = value });
         }
 

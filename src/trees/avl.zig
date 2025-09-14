@@ -106,7 +106,7 @@ pub fn AvlTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
             } else return 0;
         }
 
-        fn insertRoot(self: *Self, r: ?*Node, value: T) !*Node {
+        fn insertRoot(self: *Self, r: ?*Node, value: T) Allocator.Error!*Node {
             if (r == null) {
                 const node = try self.pool.create();
                 node.* = .{ .value = value };
@@ -155,7 +155,7 @@ pub fn AvlTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
             return root;
         }
 
-        pub inline fn insert(self: *Self, value: T) anyerror!void {
+        pub inline fn insert(self: *Self, value: T) Allocator.Error!void {
             self.root = try self.insertRoot(self.root, value);
         }
 

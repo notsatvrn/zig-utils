@@ -115,7 +115,7 @@ pub fn RedBlackTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
 
         // INSERTION
 
-        pub fn insert(self: *Self, value: T) anyerror!void {
+        pub fn insert(self: *Self, value: T) Allocator.Error!void {
             var node = try self.pool.create();
             node.* = .{ .value = value };
 
