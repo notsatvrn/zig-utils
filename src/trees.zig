@@ -11,7 +11,7 @@ pub const Kind = enum { red_black, avl };
 
 pub fn Tree(
     comptime T: type,
-    comptime cmp: fn (T, T) Order,
+    comptime cmp: ?fn (T, T) Order,
     comptime kind: Kind,
     comptime thread_safe: bool,
 ) type {
