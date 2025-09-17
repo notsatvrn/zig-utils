@@ -74,7 +74,7 @@ pub fn AvlTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
 
         fn leftRotate(node: *Node) *Node {
             const b = node.right.?;
-            const y = b.left.?;
+            const y = b.left;
 
             b.left = node;
             node.right = y;
@@ -87,7 +87,7 @@ pub fn AvlTree(comptime T: type, comptime cmp: ?fn (T, T) Order) type {
 
         fn rightRotate(node: *Node) *Node {
             const a = node.left.?;
-            const y = a.right.?;
+            const y = a.right;
 
             a.right = node;
             node.left = y;
