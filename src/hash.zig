@@ -79,8 +79,8 @@ pub fn microhash(input: []const u8) u64 {
 }
 
 /// Hash function which can be used for any strings.
-pub fn rapidhash(input: []const u8) u64 {
-    return @call(.always_inline, std.hash.RapidHash.hash, .{ seed, input });
+pub fn wyhash(input: []const u8) u64 {
+    return @call(.always_inline, std.hash.Wyhash.hash, .{ seed, input });
 }
 
 // FAST STRING HASHMAPS
