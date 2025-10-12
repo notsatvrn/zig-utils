@@ -2,34 +2,20 @@ const std = @import("std");
 const readInt = std.mem.readInt;
 const readIntPartial = @import("root.zig").readIntPartial;
 
-// ALGORITHMS
-
-const seed: u64 = 0x3243F6A8885A308D; // digits of pi
-
-/// Hash function which only "hashes" the first 8 bytes.
-/// Never use this unless you know your inputs will be <= 8 bytes.
-pub fn nanohash(input: []const u8) u64 {
-    if (input.len > 8) {
-        @branchHint(.unlikely);
-        return seed;
-    }
-
-    const int = readIntPartial(u64, input, .little);
-    return mix(int, seed) ^ input.len;
-}
+// FAST HASHING ALGORITHM
 
 // folded multiply with a faster 32-bit path
 // borrowed from foldhash and modified a bit
-inline fn mix(x: u64, y: u64) u64 {
+pub inline fn mix(x: u64, y: u64) u64 {
     const builtin = @import("builtin");
     const target = builtin.target;
     const cpu = builtin.cpu;
 
     // sparc64 and wasm64 do not have 128-bit widening multiplication
     // x86-64 and aarch64 should have it regardless of abi, but abi may reduce ptr bit width
-    // Zig 0.14.1 doesn't have wide arithmetic in the wasm feature set, add a check for that eventually
     const wide_mul = (target.ptrBitWidth() == 64 and cpu.arch != .sparc64 and cpu.arch != .wasm64) or
-        (cpu.arch == .x86_64 or cpu.arch.isAARCH64());
+        (cpu.arch == .x86_64 or cpu.arch.isAARCH64()) or
+        (cpu.arch.isWasm() and cpu.has(.wasm, .wide_arithmetic));
 
     if (wide_mul) {
         const full = @as(u128, x) * @as(u128, y);
@@ -53,10 +39,12 @@ inline fn mix(x: u64, y: u64) u64 {
 }
 
 /// Hash function optimized for small strings.
-pub fn microhash(input: []const u8) u64 {
+/// Quality degrades significantly with higher input size. Use with caution.
+pub fn microhash(seed: u64, input: []const u8) u64 {
     var ptr = input.ptr;
     var len = input.len;
-    var out = seed ^ len;
+    // mixing in the digits of pi for entropy
+    var out = 0x3243F6A8885A308D ^ seed ^ len;
 
     while (len > 16) : (len -= 16) {
         const x = readInt(u64, @ptrCast(ptr), .little);
@@ -78,39 +66,41 @@ pub fn microhash(input: []const u8) u64 {
     return out;
 }
 
-/// Hash function which can be used for any strings.
-pub fn wyhash(input: []const u8) u64 {
-    return @call(.always_inline, std.hash.Wyhash.hash, .{ seed, input });
-}
-
 // FAST STRING HASHMAPS
 
-pub fn StringContext(comptime hasher: fn ([]const u8) u64, comptime T: type) type {
-    return struct {
-        pub fn hash(_: @This(), s: []const u8) T {
-            return @truncate(hasher(s));
-        }
-        pub fn eql(_: @This(), a: []const u8, b: []const u8) bool {
-            return std.mem.eql(u8, a, b);
-        }
-    };
+pub const FastStringContext = struct {
+    pub fn hash(_: @This(), s: []const u8) u64 {
+        return microhash(0, s);
+    }
+    pub fn eql(_: @This(), a: []const u8, b: []const u8) bool {
+        return std.mem.eql(u8, a, b);
+    }
+};
+
+pub fn FastStringHashMap(comptime V: type) type {
+    return std.HashMap([]const u8, V, FastStringContext, std.hash_map.default_max_load_percentage);
+}
+pub fn FastStringHashMapUnmanaged(comptime V: type) type {
+    return std.HashMapUnmanaged([]const u8, V, FastStringContext, std.hash_map.default_max_load_percentage);
 }
 
-pub fn StringHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
-    return std.HashMap([]const u8, V, StringContext(hasher, u64), std.hash_map.default_max_load_percentage);
+pub const FastStringArrayContext = struct {
+    pub fn hash(_: @This(), s: []const u8) u32 {
+        return @truncate(microhash(0, s));
+    }
+    pub fn eql(_: @This(), a: []const u8, b: []const u8) bool {
+        return std.mem.eql(u8, a, b);
+    }
+};
+
+pub fn FastStringArrayHashMap(comptime V: type) type {
+    return std.ArrayHashMap([]const u8, V, FastStringArrayContext, true);
 }
-pub fn StringHashMapUnmanaged(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
-    return std.HashMapUnmanaged([]const u8, V, StringContext(hasher, u64), std.hash_map.default_max_load_percentage);
+pub fn FastStringArrayHashMapUnmanaged(comptime V: type) type {
+    return std.ArrayHashMapUnmanaged([]const u8, V, FastStringArrayContext, true);
 }
 
-pub fn StringArrayHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
-    return std.ArrayHashMap([]const u8, V, StringContext(hasher, u32), true);
-}
-pub fn StringArrayHashMapUnmanaged(comptime V: type, comptime hasher: fn ([]const u8) u64) type {
-    return std.ArrayHashMapUnmanaged([]const u8, V, StringContext(hasher, u32), true);
-}
-
-pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: fn ([]const u8) u64, comptime values: anytype) type {
+pub fn ComptimeStringHashMap(comptime V: type, comptime Context: type, comptime values: anytype) type {
     const chm = @import("comptime_hash_map");
 
     comptime var min_len = std.math.maxInt(usize);
@@ -122,7 +112,7 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: fn ([]const u8) 
     }
 
     return struct {
-        const map = chm.ComptimeHashMap([]const u8, V, StringContext(hasher, u64), values);
+        const map = chm.ComptimeHashMap([]const u8, V, Context, values);
 
         pub fn has(key: []const u8) bool {
             return get(key) != null;
@@ -140,7 +130,7 @@ pub fn ComptimeStringHashMap(comptime V: type, comptime hasher: fn ([]const u8) 
 // FAST STRING -> ENUM HASHMAPS
 
 /// Creates a static map of strings to enum values at compile time.
-pub fn EnumStringMap(comptime T: type, comptime hasher: fn ([]const u8) u64) type {
+pub fn EnumStringMap(comptime T: type, comptime Context: type) type {
     const type_info = @typeInfo(T);
     if (type_info != .@"enum") @compileError("enumStringMap with non-enum type");
 
@@ -149,5 +139,5 @@ pub fn EnumStringMap(comptime T: type, comptime hasher: fn ([]const u8) u64) typ
     inline for (fields, 0..) |field, i|
         out[i] = .{ field.name, @field(T, field.name) };
 
-    return ComptimeStringHashMap(T, hasher, out);
+    return ComptimeStringHashMap(T, Context, out);
 }

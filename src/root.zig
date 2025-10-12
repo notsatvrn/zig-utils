@@ -22,7 +22,7 @@ const EnumStringMap = hash.EnumStringMap;
 // this also covers hash stuff :D
 test EnumStringMap {
     const Enum = enum { foo, bar, baz, qux };
-    const map = EnumStringMap(Enum, hash.nanohash);
+    const map = EnumStringMap(Enum, hash.FastStringContext);
     try std.testing.expectEqual(map.get("foo").?, Enum.foo);
     try std.testing.expectEqual(map.get("bar").?, Enum.bar);
     try std.testing.expectEqual(map.get("baz").?, Enum.baz);
